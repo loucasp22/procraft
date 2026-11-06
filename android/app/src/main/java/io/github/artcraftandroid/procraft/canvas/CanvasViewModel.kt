@@ -2255,7 +2255,39 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
     private var modifyDownAt = 0L
     private var modifyUsed = false
 
+    /** When the system last took a whole touch back (ACTION_CANCEL), uptime ms: see [modifyReleased]. */
+    var systemCancelAt = 0L
+
+    // □ kept held after the system took its finger back, until the pen's next touch lands
+    private var modifyLatched = false
+    private val modifyLatchHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val modifyLatchExpired = Runnable {
+        if (modifyLatched) {
+            io.github.artcraftandroid.procraft.debug.InputLog.add("□ latch expired: no pen touch came")
+            endModifyLatch()
+        }
+    }
+
+    private fun endModifyLatch() {
+        modifyLatchHandler.removeCallbacks(modifyLatchExpired)
+        modifyLatched = false
+        modifyHeld = false
+        session?.setModifyHeld(false)
+    }
+
+    /**
+     * The pen landed on the canvas (after the shared touches took it): a □ kept held for it has
+     * now done what □ + Pen is set to, and is let go.
+     */
+    fun penLanded() {
+        if (!modifyLatched) return
+        io.github.artcraftandroid.procraft.debug.InputLog.add("□ latch used by the pen")
+        endModifyLatch()
+    }
+
     fun modifyPressed() {
+        if (modifyLatched) modifyLatchHandler.removeCallbacks(modifyLatchExpired)
+        modifyLatched = false
         modifyHeld = true
         modifyUsed = false
         modifyDownAt = android.os.SystemClock.uptimeMillis()
@@ -2265,6 +2297,16 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
 
     /** □ let go: a short press nothing used is a tap ([cancelled] when the finger slid off). */
     fun modifyReleased(cancelled: Boolean) {
+        // the system took □'s finger back (palm rejection, as on Galaxy tablets when the S Pen
+        // comes near): □ stays held for the pen's next touch, for a while
+        val now = android.os.SystemClock.uptimeMillis()
+        if (cancelled && now - systemCancelAt < SYSTEM_CANCEL_MS) {
+            modifyLatched = true
+            io.github.artcraftandroid.procraft.debug.InputLog.add("□ finger taken back by the system: kept held for the pen's next touch")
+            modifyLatchHandler.removeCallbacks(modifyLatchExpired)
+            modifyLatchHandler.postDelayed(modifyLatchExpired, MODIFY_LATCH_MS)
+            return
+        }
         modifyHeld = false
         // a touch the canvas's touches took meanwhile used it too
         if (session?.setModifyHeld(false) == true) modifyUsed = true
@@ -7181,6 +7223,12 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         const val QUICK_MENU_ACTIVE = "quick_menu_active"
         /** A press of □ this short, used by nothing, is a tap. */
         const val MODIFY_TAP_MS = 500L
+
+        /** □'s finger lost this soon (ms) after the system cancelled a touch was taken by the system. */
+        const val SYSTEM_CANCEL_MS = 100L
+
+        /** How long (ms) □ stays held for the pen after the system took its finger back. */
+        const val MODIFY_LATCH_MS = 3000L
         const val PRESETS = "presets"
         const val INPUT_STABILIZATION = "input_stabilization"
         const val INPUT_MOTION = "input_motion_filtering"

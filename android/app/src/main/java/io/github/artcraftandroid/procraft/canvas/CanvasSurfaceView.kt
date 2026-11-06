@@ -177,6 +177,11 @@ class CanvasSurfaceView(context: Context, private val vm: CanvasViewModel) : Sur
         if (e.actionMasked == MotionEvent.ACTION_MOVE) predict(s)
         io.github.artcraftandroid.procraft.debug.InputLog.commands(out)
         obey(out)
+        // a □ kept held for the pen (see CanvasViewModel.modifyReleased) has been used once it lands
+        if (e.actionMasked == MotionEvent.ACTION_DOWN || e.actionMasked == MotionEvent.ACTION_POINTER_DOWN) {
+            val t = e.getToolType(e.actionIndex)
+            if (t == MotionEvent.TOOL_TYPE_STYLUS || t == MotionEvent.TOOL_TYPE_ERASER) vm.penLanded()
+        }
         scheduleTouchTick(s)
     }
 

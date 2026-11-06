@@ -147,6 +147,8 @@ class MainActivity : ComponentActivity() {
 
     override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
         io.github.artcraftandroid.procraft.debug.InputLog.motion("win", e)
+        // the system taking a touch back (palm rejection): the modify button tells it from a slide off
+        if (e.actionMasked == android.view.MotionEvent.ACTION_CANCEL) vm.systemCancelAt = android.os.SystemClock.uptimeMillis()
         if (!vm.tapAssistance || e.getToolType(0) != android.view.MotionEvent.TOOL_TYPE_FINGER) return super.dispatchTouchEvent(e)
         when (e.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
