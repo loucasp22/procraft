@@ -154,6 +154,7 @@ class CanvasSurfaceView(context: Context, private val vm: CanvasViewModel) : Sur
 
     /** Hands [e] to the shared touches and does what they ask. */
     private fun route(e: MotionEvent, s: CanvasSession) {
+        io.github.artcraftandroid.procraft.debug.InputLog.motion("canvas", e)
         val out = when (e.actionMasked) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> {
                 val i = e.actionIndex
@@ -174,6 +175,7 @@ class CanvasSurfaceView(context: Context, private val vm: CanvasViewModel) : Sur
             else -> emptyList()
         }
         if (e.actionMasked == MotionEvent.ACTION_MOVE) predict(s)
+        io.github.artcraftandroid.procraft.debug.InputLog.commands(out)
         obey(out)
         scheduleTouchTick(s)
     }
@@ -337,7 +339,10 @@ class CanvasSurfaceView(context: Context, private val vm: CanvasViewModel) : Sur
     private fun penPressed(s: CanvasSession, second: Boolean, x: Float, y: Float) {
         // as they are now: nothing has told the session if no touch has come since they were set
         s.setTouchSettings(vm.touchSettings())
-        obey(s.touchPenButton(second, x, y))
+        io.github.artcraftandroid.procraft.debug.InputLog.add("pen button ${if (second) "2" else "1"} pressed")
+        val out = s.touchPenButton(second, x, y)
+        io.github.artcraftandroid.procraft.debug.InputLog.commands(out)
+        obey(out)
         vm.penButtonDone()
     }
 

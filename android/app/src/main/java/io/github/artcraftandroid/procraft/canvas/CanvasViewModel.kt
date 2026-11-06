@@ -2260,6 +2260,7 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         modifyUsed = false
         modifyDownAt = android.os.SystemClock.uptimeMillis()
         session?.setModifyHeld(true)
+        io.github.artcraftandroid.procraft.debug.InputLog.add("□ pressed (session ${if (session == null) "none" else "ok"})")
     }
 
     /** □ let go: a short press nothing used is a tap ([cancelled] when the finger slid off). */
@@ -2267,6 +2268,9 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         modifyHeld = false
         // a touch the canvas's touches took meanwhile used it too
         if (session?.setModifyHeld(false) == true) modifyUsed = true
+        io.github.artcraftandroid.procraft.debug.InputLog.add(
+            "□ released (cancelled=$cancelled, used by a touch=$modifyUsed, held ${android.os.SystemClock.uptimeMillis() - modifyDownAt} ms)",
+        )
         if (!cancelled && !modifyUsed && android.os.SystemClock.uptimeMillis() - modifyDownAt < MODIFY_TAP_MS) tapModify()
     }
 

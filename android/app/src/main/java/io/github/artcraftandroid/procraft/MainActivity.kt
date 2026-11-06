@@ -51,7 +51,12 @@ class MainActivity : ComponentActivity() {
         io.github.artcraftandroid.procraft.core.setGpuRecordFolder(filesDir.path)
         // made here, not inside the flow's read-only snapshot, where its setup can't write state
         val model = vm
-        setContent { AppRoot(model) }
+        // the input log shows in the "ProCraft Fixed" build only
+        io.github.artcraftandroid.procraft.debug.InputLog.enabled = packageName.endsWith(".fixed")
+        setContent {
+            AppRoot(model)
+            io.github.artcraftandroid.procraft.debug.InputLogOverlay()
+        }
         lifecycleScope.launch { snapshotFlow { model.projectCanvas }.collect { showProjection() } }
         importOpened(intent)
     }
@@ -130,7 +135,18 @@ class MainActivity : ComponentActivity() {
      * More fingers, a touch held longer, or one gone farther than a drift (a list scrolled) go on
      * as they are.
      */
+    override fun dispatchGenericMotionEvent(e: android.view.MotionEvent): Boolean {
+        io.github.artcraftandroid.procraft.debug.InputLog.motion("win", e)
+        return super.dispatchGenericMotionEvent(e)
+    }
+
+    override fun dispatchKeyEvent(e: android.view.KeyEvent): Boolean {
+        io.github.artcraftandroid.procraft.debug.InputLog.key(e)
+        return super.dispatchKeyEvent(e)
+    }
+
     override fun dispatchTouchEvent(e: android.view.MotionEvent): Boolean {
+        io.github.artcraftandroid.procraft.debug.InputLog.motion("win", e)
         if (!vm.tapAssistance || e.getToolType(0) != android.view.MotionEvent.TOOL_TYPE_FINGER) return super.dispatchTouchEvent(e)
         when (e.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
