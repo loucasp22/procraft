@@ -113,6 +113,12 @@ private val Groups: List<Pair<String, List<Setting>>> = listOf(
             "A tap lands where the finger first touched, even if it drifts before lifting.", false,
         ),
     ),
+    "Troubleshooting" to listOf(
+        Toggle(
+            CanvasViewModel.INPUT_LOG, "Input Log",
+            "Shows every touch, pen and button event as it arrives, and what the app did with it.", false,
+        ),
+    ),
 )
 
 @Composable

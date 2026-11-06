@@ -692,6 +692,23 @@ impl CanvasSession {
         true
     }
 
+    /// Picks out layer `id` while layers are chosen by touch (Layer Select): the others show
+    /// dimmed; with none, every layer shows as it is set again. Not an undo step, never saved.
+    pub fn set_picked_layer(&self, id: Option<u64>) {
+        let mut guard = self.shared.lock();
+        let st = &mut *guard;
+        let picked = id.map(LayerId).filter(|p| st.doc.layer(*p).is_some());
+        if st.doc.highlighted == picked {
+            return;
+        }
+        st.doc.highlighted = picked;
+        if let Some(canvas) = st.canvas.as_mut() {
+            canvas.invalidate();
+        }
+        st.revision += 1;
+        self.shared.frame(st);
+    }
+
     /// The layer shown alone, if one is.
     pub fn solo(&self) -> Option<u64> {
         let st = self.shared.lock();

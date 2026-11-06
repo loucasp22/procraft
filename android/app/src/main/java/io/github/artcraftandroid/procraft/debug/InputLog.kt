@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -24,11 +27,22 @@ import androidx.compose.ui.unit.sp
 /**
  * A live log of input, for finding out what a device sends: every touch, pen and key event the
  * window gets ("win") and the canvas gets ("canvas"), and what the app made of it. Shown over the
- * app, and written to logcat (tag ProcraftInput), only in the "ProCraft Fixed" build.
+ * app, and written to logcat (tag ProcraftInput), while Settings > Troubleshooting > Input Log is on.
  */
 object InputLog {
-    var enabled = false
+    var enabled by mutableStateOf(false)
+        private set
     val lines = mutableStateListOf<String>()
+
+    /** On or off, as the setting says; off, what it held is let go. */
+    fun setShown(on: Boolean) {
+        if (on == enabled) return
+        enabled = on
+        if (!on) {
+            lines.clear()
+            lastMove.clear()
+        }
+    }
     private const val MAX = 16
     private val lastMove = HashMap<String, String>()
 

@@ -1155,9 +1155,10 @@ impl Interface {
                 TouchCommand::LayerSelectLive { x, y } => {
                     if let Some(&top) = session.layers_at(x, y).first() {
                         session.select_layer(top);
+                        session.set_picked_layer(Some(top));
                     }
                 }
-                TouchCommand::LayerSelectEnd => {}
+                TouchCommand::LayerSelectEnd => session.set_picked_layer(None),
                 TouchCommand::QuickMenu { x, y } => self.quick_menu.toggle(egui::pos2(x, y) / ctx.pixels_per_point()),
                 // what a pen's own settings ask its button to show
                 TouchCommand::ShowColours => self.toggle(session, Popover::Colour),

@@ -411,6 +411,10 @@ pub struct Document {
     /// The layer shown alone, the others left out of the picture (solo visibility).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub solo: Option<LayerId>,
+    /// The layer picked out while layers are chosen by touch (Layer Select), the others shown
+    /// dimmed (see [`Document::dimmed_out`]). How the artwork is looked at for a moment, never kept.
+    #[serde(skip)]
+    pub highlighted: Option<LayerId>,
     /// The look of the text last edited (see [`LayerText::look`]), which new text starts with.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub text_style: Option<LayerText>,
@@ -496,6 +500,7 @@ impl Document {
             profile: crate::profile::Profile::Srgb,
             icc: None,
             solo: None,
+            highlighted: None,
             text_style: None,
         };
         doc.add_layer();
@@ -657,11 +662,22 @@ impl Document {
     /// Whether layer `id` is left out of the picture while another is shown alone (solo): all
     /// but that layer, its mask and the groups it is in.
     pub fn soloed_out(&self, id: LayerId) -> bool {
-        let Some(solo) = self.solo.filter(|s| self.layer(*s).is_some()) else { return false };
-        if id == solo || self.mask_of(solo) == Some(id) {
+        self.outside(self.solo, id)
+    }
+
+    /// Whether layer `id` is shown dimmed while another is picked out by Layer Select (see
+    /// [`Document::highlighted`]): all but that layer, its mask and the groups it is in.
+    pub fn dimmed_out(&self, id: LayerId) -> bool {
+        self.outside(self.highlighted, id)
+    }
+
+    /// Whether `id` is neither layer `focus` (if it is one), its mask, nor a group it is in.
+    fn outside(&self, focus: Option<LayerId>, id: LayerId) -> bool {
+        let Some(focus) = focus.filter(|s| self.layer(*s).is_some()) else { return false };
+        if id == focus || self.mask_of(focus) == Some(id) {
             return false;
         }
-        !(self.layer(id).is_some_and(|l| l.kind == LayerKind::Group) && self.is_inside(solo, id))
+        !(self.layer(id).is_some_and(|l| l.kind == LayerKind::Group) && self.is_inside(focus, id))
     }
 
     /// The reference layer, if one is set.
@@ -1630,6 +1646,28 @@ mod tests {
         assert_eq!(d.layers().len(), 1);
         assert_eq!(d.layers()[0].name, "Layer 1");
         assert_eq!(d.current(), d.layers()[0].id);
+    }
+
+    #[test]
+    fn a_highlighted_layer_dims_the_others_but_not_its_mask_and_is_never_saved() {
+        let mut d = Document::new(10, 10);
+        let first = d.current();
+        let second = d.add_layer();
+        let mask = d.add_mask(second).expect("a mask");
+        assert!(!d.dimmed_out(first), "nothing picked: nothing dimmed");
+        d.highlighted = Some(second);
+        assert!(d.dimmed_out(first));
+        assert!(!d.dimmed_out(second));
+        assert!(!d.dimmed_out(mask));
+        // a layer no longer there picks out nothing
+        d.highlighted = Some(LayerId(999));
+        assert!(!d.dimmed_out(first));
+        // how it is looked at for a moment, not part of the file
+        d.highlighted = Some(second);
+        let json = serde_json::to_string(&d).unwrap();
+        assert!(!json.contains("highlighted"));
+        let back: Document = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.highlighted, None);
     }
 
     #[test]

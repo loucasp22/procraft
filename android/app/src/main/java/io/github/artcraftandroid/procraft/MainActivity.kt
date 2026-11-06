@@ -51,8 +51,7 @@ class MainActivity : ComponentActivity() {
         io.github.artcraftandroid.procraft.core.setGpuRecordFolder(filesDir.path)
         // made here, not inside the flow's read-only snapshot, where its setup can't write state
         val model = vm
-        // the input log shows in the "ProCraft Fixed" build only
-        io.github.artcraftandroid.procraft.debug.InputLog.enabled = packageName.endsWith(".fixed")
+        // the input log over the app, if Settings > Troubleshooting has it on
         setContent {
             AppRoot(model)
             io.github.artcraftandroid.procraft.debug.InputLogOverlay()

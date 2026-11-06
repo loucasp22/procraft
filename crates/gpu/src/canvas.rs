@@ -723,6 +723,9 @@ impl Look {
     const PLAIN: Look = Look { tint: [0.0; 4], opacity: 1.0 };
 }
 
+/// What a layer's opacity is taken down to while another is picked out by Layer Select.
+const PICKED_OUT_OPACITY: f32 = 0.25;
+
 impl LayerUniform {
     /// With the stroke's second, if it has one (a dual brush's).
     fn with_dual(self, stroke: Option<&ActiveStroke>) -> LayerUniform {
@@ -5388,13 +5391,14 @@ impl Canvas {
             }
             self.dirty = self.dirty.union(rect);
         }
-        let solo = doc.solo;
+        let (solo, highlighted) = (doc.solo, doc.highlighted);
         let replaced = step.doc.map(|before| Box::new(std::mem::replace(doc, *before)));
         if let Some(replaced) = &replaced {
             // no layer it numbered numbered again: its pixels may still be held for redo
             doc.keep_ids_from(replaced);
-            // a layer shown alone is how the artwork is looked at, not a change to undo
+            // a layer shown alone (or picked out) is how the artwork is looked at, not a change to undo
             doc.solo = solo.filter(|s| doc.layer(*s).is_some());
+            doc.highlighted = highlighted.filter(|s| doc.layer(*s).is_some());
             self.dirty = self.full();
         }
         let selection = step.selection.map(|before| {
@@ -6504,6 +6508,9 @@ impl Canvas {
                 }
                 _ => Look::PLAIN,
             };
+            // another layer picked out by Layer Select: this one dimmed (a group holding it isn't:
+            // its members are, one by one)
+            let look = if doc.dimmed_out(id) { Look { opacity: look.opacity * PICKED_OUT_OPACITY, ..look } } else { look };
             match layer.kind {
                 LayerKind::Mask => {}
                 LayerKind::Paint => {
@@ -8924,7 +8931,7 @@ fn items_key(doc: &Document, items: &[LayerId], background: bool) -> u64 {
     if background {
         format!("{:?} {}", doc.background, doc.background_visible).hash(&mut h);
     }
-    format!("{:?}", doc.solo).hash(&mut h);
+    format!("{:?} {:?}", doc.solo, doc.highlighted).hash(&mut h);
     for &item in items {
         for id in item_layers(doc, item) {
             format!("{:?}", doc.layer(id)).hash(&mut h);

@@ -1204,6 +1204,7 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         feedbackSounds = interfacePrefs.getBoolean(FEEDBACK_SOUNDS, false)
         singleTouchCompanion = interfacePrefs.getBoolean(SINGLE_TOUCH_COMPANION, false)
         tapAssistance = interfacePrefs.getBoolean(TAP_ASSISTANCE, false)
+        io.github.artcraftandroid.procraft.debug.InputLog.setShown(interfacePrefs.getBoolean(INPUT_LOG, false))
         if (!singleTouchCompanion) companionMode = CompanionMode.NONE
         orientationMemory = interfacePrefs.getBoolean(ORIENTATION_MEMORY, true)
         fitInside = interfacePrefs.getBoolean(FIT_INSIDE, false)
@@ -2697,6 +2698,8 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         if (id != layerLiveChosen) {
             layerLiveChosen = id
             selectLayer(id)
+            // on the canvas too: the others dimmed
+            session?.setPickedLayer(id)
         }
     }
 
@@ -2704,6 +2707,7 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
     fun layerSelectLiveEnd() {
         val before = layerLiveBefore ?: return
         layerLiveBefore = null
+        session?.setPickedLayer(null)
         if (layerLiveChosen == null) message = "Nothing is drawn there."
         layerLiveChosen = null
         layerLiveAt = null
@@ -7217,6 +7221,9 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         const val FEEDBACK_SOUNDS = "feedback_sounds"
         const val SINGLE_TOUCH_COMPANION = "single_touch_companion"
         const val TAP_ASSISTANCE = "tap_assistance"
+
+        /** Troubleshooting: the live input log over the app. */
+        const val INPUT_LOG = "input_log"
 
         /**
          * The layered package's file extensions, and their names in the Share lists: ours, and the
