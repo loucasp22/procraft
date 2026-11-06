@@ -2669,6 +2669,47 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
     var layerChoice by mutableStateOf<Pair<Offset, List<ULong>>?>(null)
 
     /** Layer Select at window point [at]: the top layer drawn there becomes current, the others listed. */
+    // a touch made while □ is held choosing layers as it moves: the panel open before it (null
+    // when none is under way), the layer it chose last, and where it last looked
+    private var layerLiveBefore: Panel? = null
+    private var layerLiveChosen: ULong? = null
+    private var layerLiveAt: Offset? = null
+
+    /**
+     * A touch made while □ is held, set to Layer Select, is at [at]: the top layer drawn there is
+     * chosen, and the Layers panel shows it, as the touch moves (as in Procreate).
+     */
+    fun layerSelectLive(at: Offset) {
+        if (layerLiveBefore == null) {
+            layerLiveBefore = panel
+            layerLiveChosen = null
+            layerLiveAt = null
+            if (panel != Panel.LAYERS) {
+                panel = Panel.LAYERS
+                refreshThumbnails()
+            }
+        }
+        // looked again once it has moved a few pixels
+        val last = layerLiveAt
+        if (last != null && (last - at).getDistance() < LAYER_LIVE_STEP) return
+        layerLiveAt = at
+        val id = session?.layersAt(at.x, at.y).orEmpty().firstOrNull() ?: return
+        if (id != layerLiveChosen) {
+            layerLiveChosen = id
+            selectLayer(id)
+        }
+    }
+
+    /** The touch choosing layers as it moved lifted: the panel goes back to what it was. */
+    fun layerSelectLiveEnd() {
+        val before = layerLiveBefore ?: return
+        layerLiveBefore = null
+        if (layerLiveChosen == null) message = "Nothing is drawn there."
+        layerLiveChosen = null
+        layerLiveAt = null
+        if (before != Panel.LAYERS) panel = before
+    }
+
     fun layerSelectAt(at: Offset) {
         val ids = session?.layersAt(at.x, at.y).orEmpty()
         if (ids.isEmpty()) {
@@ -7223,6 +7264,9 @@ class CanvasViewModel(app: Application) : AndroidViewModel(app) {
         const val QUICK_MENU_ACTIVE = "quick_menu_active"
         /** A press of □ this short, used by nothing, is a tap. */
         const val MODIFY_TAP_MS = 500L
+
+        /** How far (window pixels) a touch choosing layers moves before the layer under it is looked up again. */
+        const val LAYER_LIVE_STEP = 6f
 
         /** □'s finger lost this soon (ms) after the system cancelled a touch was taken by the system. */
         const val SYSTEM_CANCEL_MS = 100L

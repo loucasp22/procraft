@@ -1151,6 +1151,13 @@ impl Interface {
                 TouchCommand::RecolorTapped { x, y } => session.recolor_tap(x, y),
                 TouchCommand::CopyPaste => self.copy_paste = true,
                 TouchCommand::LayerSelect { x, y } => self.layer_select(ctx, session, x, y),
+                // chosen as it moves: the top layer drawn there, no choice offered
+                TouchCommand::LayerSelectLive { x, y } => {
+                    if let Some(&top) = session.layers_at(x, y).first() {
+                        session.select_layer(top);
+                    }
+                }
+                TouchCommand::LayerSelectEnd => {}
                 TouchCommand::QuickMenu { x, y } => self.quick_menu.toggle(egui::pos2(x, y) / ctx.pixels_per_point()),
                 // what a pen's own settings ask its button to show
                 TouchCommand::ShowColours => self.toggle(session, Popover::Colour),

@@ -221,6 +221,14 @@ pub enum TouchCommand {
         x: f32,
         y: f32,
     },
+    /// A touch made while □ is held, set to Layer Select, is at (x, y): the layer drawn there is
+    /// chosen as it moves, the Layers panel showing which, until [`TouchCommand::LayerSelectEnd`].
+    LayerSelectLive {
+        x: f32,
+        y: f32,
+    },
+    /// The touch choosing layers as it moved (see [`TouchCommand::LayerSelectLive`]) lifted.
+    LayerSelectEnd,
     /// The last stroke becomes a shape.
     QuickShapeLast,
     /// The eyedropper is under (x, y); then it lets go (its colour taken) or is called off.
@@ -890,6 +898,7 @@ impl CanvasSession {
                 match purpose {
                     GestureAction::Eyedropper => out.push(TouchCommand::Pick { x: at.0, y: at.1 }),
                     GestureAction::Smudge | GestureAction::Erase | GestureAction::Assisted => self.stroke_add(samples),
+                    GestureAction::LayerSelect => out.push(TouchCommand::LayerSelectLive { x: at.0, y: at.1 }),
                     _ => {}
                 }
             }
@@ -1690,6 +1699,7 @@ impl CanvasSession {
                     }
                     out.push(TouchCommand::StrokeEnded);
                 }
+                GestureAction::LayerSelect => out.push(TouchCommand::LayerSelectEnd),
                 _ => {}
             }
             return out;
@@ -1896,6 +1906,8 @@ impl CanvasSession {
                 }
                 self.stroke_begin(kind, samples.to_vec());
             }
+            // the layer under it chosen as it moves, as in Procreate
+            GestureAction::LayerSelect => out.push(TouchCommand::LayerSelectLive { x: at.0, y: at.1 }),
             a => Self::act(a, at, out),
         }
     }
@@ -2840,6 +2852,21 @@ mod tests {
         // a touch used it: its tap does nothing
         assert!(s.set_modify_held(false));
         assert!(!s.set_modify_held(false));
+    }
+
+    #[test]
+    fn the_modify_button_and_the_pen_choose_layers_as_the_pen_moves() {
+        let s = session();
+        s.set_touch_settings(TouchSettings { modify_pen: Some(GestureAction::LayerSelect), ..TouchSettings::default() });
+        s.set_modify_held(true);
+        let out = s.touch_down(1, PointerKind::Stylus, at(10.0, 10.0, 0.0));
+        assert!(out.contains(&TouchCommand::LayerSelectLive { x: 10.0, y: 10.0 }), "{out:?}");
+        // the button let go while the pen is down: the pen goes on choosing
+        s.set_modify_held(false);
+        let out = s.touch_move(1, at(60.0, 10.0, 50.0));
+        assert!(out.contains(&TouchCommand::LayerSelectLive { x: 60.0, y: 10.0 }), "{out:?}");
+        let out = s.touch_up(1, at(60.0, 10.0, 100.0));
+        assert!(out.contains(&TouchCommand::LayerSelectEnd), "{out:?}");
     }
 
     #[test]

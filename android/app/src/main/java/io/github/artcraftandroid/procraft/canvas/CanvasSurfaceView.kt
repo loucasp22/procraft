@@ -196,6 +196,8 @@ class CanvasSurfaceView(context: Context, private val vm: CanvasViewModel) : Sur
             TouchCommand.CopyPaste -> vm.copyPasteOpen = true
             is TouchCommand.QuickMenu -> vm.toggleQuickMenu(Offset(c.x, c.y))
             is TouchCommand.LayerSelect -> vm.layerSelectAt(Offset(c.x, c.y))
+            is TouchCommand.LayerSelectLive -> vm.layerSelectLive(Offset(c.x, c.y))
+            TouchCommand.LayerSelectEnd -> vm.layerSelectLiveEnd()
             TouchCommand.QuickShapeLast -> vm.quickShapeLast()
             is TouchCommand.Pick -> vm.pickAt(c.x, c.y, pickSide)
             TouchCommand.PickDone -> vm.finishPick()
