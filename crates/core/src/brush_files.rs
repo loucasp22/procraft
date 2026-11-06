@@ -802,6 +802,8 @@ fn stock_shape(n: &str) -> u32 {
         (&["leaf", "foliage", "tree"], shape::LEAF),
         (&["grass", "reed"], shape::GRASS),
         (&["cloud", "fog", "smoke"], shape::CLOUD),
+        // a bush's lumpy, clustered outline (as the stock Garden-Bush), nearest our cloud's puffs
+        (&["bush", "shrub", "hedge"], shape::CLOUD),
         (&["wisp", "wind"], shape::WISP),
         (&["star", "sparkle", "glint", "flare", "twinkle"], shape::SPARKLE),
         (&["ring", "bokeh", "circle", "bubble"], shape::RING),
@@ -1127,6 +1129,8 @@ mod tests {
         assert_eq!(shape("Old-Square-Dots.jpg"), Some(shape::STOCK_SQUARE_DOTS));
         // a stock blot keeps its drops close, not ours that are pushed out for stamps that turn
         assert_eq!(shape("Old-Ink-Blot.jpg"), Some(shape::STOCK_BLOT));
+        // a bush's clustered puffs, not the grainy disc
+        assert_eq!(shape("Garden-Bush.jpg"), Some(shape::CLOUD));
         assert_eq!(grain_for(&Texture::Stock { name: "Blank.png".into(), inverted: false }, None), (None, None));
         assert_eq!(
             grain_for(&Texture::Stock { name: "Old-Canvas.jpg".into(), inverted: false }, None).0,

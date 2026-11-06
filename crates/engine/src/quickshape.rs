@@ -40,10 +40,6 @@ const CLOSED: f32 = 0.18;
 const CORNER_TOLERANCE: f32 = 0.08;
 /// Points sampled around a curved outline.
 const OUTLINE_STEPS: usize = 128;
-/// A held finger turns an ellipse into a circle when its axes' ratio is within this of 1, and a
-/// rectangle into a square within this.
-const ROUND_ENOUGH: f32 = 0.5;
-const SQUARE_ENOUGH: f32 = 0.25;
 /// The steps a held finger keeps a shape's turn to: 15 degrees.
 pub const TURN_STEP: f32 = std::f32::consts::PI / 12.0;
 
@@ -235,26 +231,17 @@ impl Shape {
     }
 
     /// The kind a finger down makes of a shape still held, from the shape as it snapped (the
-    /// `stroke` it was drawn from): an ellipse whose axes are within half of each other a circle,
-    /// a triangle equilateral, a quadrilateral a rectangle, and a rectangle whose sides are within
-    /// a quarter of each other a square. Other kinds stay as they are; the finger also keeps the
-    /// turn to whole steps (see [`Shape::turned_to_step`]).
+    /// `stroke` it was drawn from), as Procreate's QuickShape does whatever its proportions: an
+    /// ellipse a circle, a triangle equilateral, and a quadrilateral or rectangle a square. Other
+    /// kinds stay as they are; the finger also keeps the turn to whole steps (see
+    /// [`Shape::turned_to_step`]).
     pub fn snapped(&self, stroke: &[Vec2]) -> Shape {
         match self.kind {
-            ShapeKind::Ellipse => {
-                let (_, a, b) = self.ellipse_frame();
-                if b.length() > 0.0 && (1.0 - a.length() / b.length()).abs() < ROUND_ENOUGH {
-                    self.as_kind(ShapeKind::Circle, stroke)
-                } else {
-                    self.clone()
-                }
-            }
+            ShapeKind::Ellipse => self.as_kind(ShapeKind::Circle, stroke),
             ShapeKind::Triangle => equilateral(self),
             ShapeKind::Quadrilateral | ShapeKind::Rectangle => {
                 let rect = self.as_kind(ShapeKind::Rectangle, if stroke.is_empty() { &self.nodes } else { stroke });
-                let get = |i: usize| rect.nodes.get(i).copied().unwrap_or(Vec2::ZERO);
-                let (w, h) = (get(0).distance(get(1)), get(0).distance(get(3)));
-                if h > 0.0 && (1.0 - w / h).abs() < SQUARE_ENOUGH { squared(&rect) } else { rect }
+                squared(&rect)
             }
             _ => self.clone(),
         }
@@ -1169,10 +1156,12 @@ mod tests {
         let circle = ellipse.snapped(&[]);
         assert_eq!(circle.kind, ShapeKind::Circle);
         assert!(circle.nodes[1].distance(Vec2::new(0.0, 35.0)) < 1e-3, "{circle:?}");
-        // too long and thin (axes 3 to 1) stays an ellipse
+        // long and thin (axes 3 to 1) a circle too, as in Procreate, of the mean radius
         let long = axes_shape(ShapeKind::Ellipse, Vec2::ZERO, Vec2::new(60.0, 0.0), Vec2::new(0.0, 20.0));
-        assert_eq!(long.snapped(&[]).kind, ShapeKind::Ellipse);
-        // a nearly square quadrilateral a square; a long one a rectangle
+        let round = long.snapped(&[]);
+        assert_eq!(round.kind, ShapeKind::Circle);
+        assert!((round.nodes[1].distance(round.nodes[0]) - 40.0).abs() < 1e-3, "{round:?}");
+        // a quadrilateral a square, nearly square or long
         let square_ish = [Vec2::new(0.0, 0.0), Vec2::new(100.0, 5.0), Vec2::new(95.0, 95.0), Vec2::new(-5.0, 90.0)];
         let quad = Shape { kind: ShapeKind::Quadrilateral, nodes: square_ish.to_vec() };
         let square = quad.snapped(&polygon_path(&square_ish, 20));
@@ -1182,7 +1171,10 @@ mod tests {
         assert!((square.nodes[1] - square.nodes[0]).dot(square.nodes[3] - square.nodes[0]).abs() < 1e-2);
         let long = [Vec2::new(0.0, 0.0), Vec2::new(200.0, 5.0), Vec2::new(195.0, 95.0), Vec2::new(-5.0, 90.0)];
         let quad = Shape { kind: ShapeKind::Quadrilateral, nodes: long.to_vec() };
-        assert_eq!(quad.snapped(&polygon_path(&long, 20)).kind, ShapeKind::Rectangle);
+        let square = quad.snapped(&polygon_path(&long, 20));
+        assert_eq!(square.kind, ShapeKind::Square);
+        let sides: Vec<f32> = (0..4).map(|i| square.nodes[i].distance(square.nodes[(i + 1) % 4])).collect();
+        assert!(sides.iter().all(|s| (s - sides[0]).abs() < 1e-3), "{sides:?}");
         let tri =
             Shape { kind: ShapeKind::Triangle, nodes: vec![Vec2::ZERO, Vec2::new(90.0, 0.0), Vec2::new(0.0, 90.0)] };
         let eq = tri.snapped(&[]);
